@@ -17,13 +17,16 @@ struct DnsHeader {
     arcount: u16,
 }
 
-struct DnsQuestion {}
+struct DnsQuestion {
+    name: String,
+    typ: u16,
+    class: u16,
+}
 struct DnsAnswer {}
 
 struct DnsMessage {
     header: DnsHeader,
     question: DnsQuestion,
-    answer: DnsAnswer,
 }
 
 fn main() {
@@ -38,9 +41,9 @@ fn main() {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 println!("Received {} bytes from {}", size, source);
-                let response = DnsHeader {
+                let header = DnsHeader {
                     id: [0x04, 0xd2],
-                    qr: 0x80,
+                    qr: 1,
                     opcode: 0,
                     aa: 0,
                     tc: 0,
@@ -48,29 +51,44 @@ fn main() {
                     ra: 0,
                     z: 0,
                     rcode: 0,
-                    qdcount: 0,
+                    qdcount: 1,
                     ancount: 0,
                     nscount: 0,
                     arcount: 0,
                 };
-                let mut response_list: Vec<u8> = Vec::new();
-                for byte in response.id.iter() {
-                    response_list.push(*byte);
-                }
-                response_list.push(response.qr);
-                response_list.push(response.opcode);
-                response_list.push(response.aa);
-                response_list.push(response.tc);
-                response_list.push(response.rd);
-                response_list.push(response.ra);
-                response_list.push(response.z);
-                response_list.push(response.rcode);
-                response_list.push(response.qdcount as u8);
-                response_list.push(response.ancount as u8);
-                response_list.push(response.nscount as u8);
-                response_list.push(response.arcount as u8);
+
+                let mut header_res: Vec<u8> = Vec::new();
+
+                let flags: u16 = ((header.qr as u16) << 15)
+                    | ((header.opcode as u16) << 11)
+                    | ((header.aa as u16) << 10)
+                    | ((header.tc as u16) << 9)
+                    | ((header.rd as u16) << 8)
+                    | ((header.ra as u16) << 7)
+                    | ((header.z as u16) << 4)
+                    | (header.rcode as u16);
+
+                header_res.extend_from_slice(&header.id);
+                header_res.extend_from_slice(&flags.to_be_bytes());
+                header_res.extend_from_slice(&header.qdcount.to_be_bytes());
+                header_res.extend_from_slice(&header.ancount.to_be_bytes());
+                header_res.extend_from_slice(&header.nscount.to_be_bytes());
+                header_res.extend_from_slice(&header.arcount.to_be_bytes());
+
+                let question = DnsQuestion {
+                    typ: 1,
+                    class: 1,
+                    name: "\x0ccodecrafters\x02io\x00".to_string(),
+                };
+
+                let mut question_res = Vec::new();
+
+                question_res.extend_from_slice(question.name.as_bytes());
+                question_res.extend_from_slice(&question.typ.to_be_bytes());
+                question_res.extend_from_slice(&question.class.to_be_bytes());
+
                 udp_socket
-                    .send_to(&response_list, source)
+                    .send_to(&([header_res, question_res].concat()), source)
                     .expect("Failed to send response");
             }
             Err(e) => {

@@ -44,16 +44,26 @@ fn main() {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 println!("Received {} bytes from {}", size, source);
+                let id = [buf[0], buf[1]];
+                let opcode = (buf[2] & 0b01111000) >> 3;
+                let rd = buf[2] & 0b00000001;
+                let rcode: u8;
+                if opcode == 0 {
+                    rcode = 0;
+                } else {
+                    rcode = 4;
+                }
+
                 let header = DnsHeader {
-                    id: [0x04, 0xd2],
+                    id,
                     qr: 1,
-                    opcode: 0,
+                    opcode,
                     aa: 0,
                     tc: 0,
-                    rd: 0,
+                    rd,
                     ra: 0,
                     z: 0,
-                    rcode: 0,
+                    rcode,
                     qdcount: 1,
                     ancount: 1,
                     nscount: 0,

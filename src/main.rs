@@ -22,11 +22,14 @@ struct DnsQuestion {
     typ: u16,
     class: u16,
 }
-struct DnsAnswer {}
 
-struct DnsMessage {
-    header: DnsHeader,
-    question: DnsQuestion,
+struct DnsAnswer {
+    name: String,
+    typ: u16,
+    class: u16,
+    ttl: u32,
+    rdlength: u16,
+    rdata: Vec<u8>,
 }
 
 fn main() {
@@ -52,7 +55,7 @@ fn main() {
                     z: 0,
                     rcode: 0,
                     qdcount: 1,
-                    ancount: 0,
+                    ancount: 1,
                     nscount: 0,
                     arcount: 0,
                 };
@@ -87,8 +90,26 @@ fn main() {
                 question_res.extend_from_slice(&question.typ.to_be_bytes());
                 question_res.extend_from_slice(&question.class.to_be_bytes());
 
+                let answer = DnsAnswer {
+                    name: "\x0ccodecrafters\x02io\x00".to_string(),
+                    typ: 1,
+                    class: 1,
+                    ttl: 60,
+                    rdlength: 4,
+                    rdata: vec![8, 8, 8, 8],
+                };
+
+                let mut answer_res = Vec::new();
+
+                answer_res.extend_from_slice(answer.name.as_bytes());
+                answer_res.extend_from_slice(&answer.typ.to_be_bytes());
+                answer_res.extend_from_slice(&answer.class.to_be_bytes());
+                answer_res.extend_from_slice(&answer.ttl.to_be_bytes());
+                answer_res.extend_from_slice(&answer.rdlength.to_be_bytes());
+                answer_res.extend_from_slice(&answer.rdata);
+
                 udp_socket
-                    .send_to(&([header_res, question_res].concat()), source)
+                    .send_to(&([header_res, question_res, answer_res].concat()), source)
                     .expect("Failed to send response");
             }
             Err(e) => {

@@ -54,6 +54,16 @@ fn main() {
                     rcode = 4;
                 }
 
+                let mut pos = 12;
+                while buf[pos] != 0 {
+                    pos += 1;
+                }
+                pos += 1; // Skip null byte
+
+                let name = String::from_utf8_lossy(&buf[12..pos - 1]).to_string();
+                let typ = (buf[pos] as u16) << 8 | buf[pos + 3] as u16;
+                let class = (buf[pos + 2] as u16) << 8 | buf[pos + 3] as u16;
+
                 let header = DnsHeader {
                     id,
                     qr: 1,
@@ -89,29 +99,31 @@ fn main() {
                 header_res.extend_from_slice(&header.arcount.to_be_bytes());
 
                 let question = DnsQuestion {
-                    typ: 1,
-                    class: 1,
-                    name: "\x0ccodecrafters\x02io\x00".to_string(),
+                    typ,
+                    class,
+                    name: name.clone(),
                 };
 
                 let mut question_res = Vec::new();
 
                 question_res.extend_from_slice(question.name.as_bytes());
+                question_res.push(0);
                 question_res.extend_from_slice(&question.typ.to_be_bytes());
                 question_res.extend_from_slice(&question.class.to_be_bytes());
 
                 let answer = DnsAnswer {
-                    name: "\x0ccodecrafters\x02io\x00".to_string(),
-                    typ: 1,
-                    class: 1,
+                    name,
+                    typ,
+                    class,
                     ttl: 60,
                     rdlength: 4,
-                    rdata: vec![8, 8, 8, 8],
+                    rdata: vec![0x01, 0x01, 0x01, 0x01],
                 };
 
                 let mut answer_res = Vec::new();
 
                 answer_res.extend_from_slice(answer.name.as_bytes());
+                answer_res.push(0);
                 answer_res.extend_from_slice(&answer.typ.to_be_bytes());
                 answer_res.extend_from_slice(&answer.class.to_be_bytes());
                 answer_res.extend_from_slice(&answer.ttl.to_be_bytes());
